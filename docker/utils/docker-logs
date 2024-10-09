@@ -1,0 +1,8 @@
+#!/bin/bash
+function execute-command() {
+  filter=$1
+  
+  docker logs -f --tail 50 $(docker ps --filter name=${filter} -q | head -1)
+}
+
+execute-command "$@"

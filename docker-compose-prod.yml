@@ -1,0 +1,90 @@
+version: "3.9"
+
+services:
+  caddy:
+    image: marcgraub/totretolacio-caddy
+    build:
+      context: ./caddy
+      dockerfile: Dockerfile
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - adminer-data:/var/www/html
+      - ./caddy/data:/data
+      - ./caddy/config:/config
+    secrets:
+        - caddy_cloudflare_api_token
+        - adminer_auth_user
+        - adminer_auth_password_hash
+        - source: Caddyfile
+          target: /etc/caddy/Caddyfile
+          uid: '1000'
+          gid: '1001'
+          mode: 0700
+    entrypoint: [ '/bin/sh', '-c', 'export CADDY_CLOUDFLARE_API_TOKEN=$$(cat /var/run/secrets/caddy_cloudflare_api_token) && export ADMINER_AUTH_USER=$$(cat /var/run/secrets/adminer_auth_user) && export ADMINER_AUTH_PASSWORD_HASH=$$(cat /var/run/secrets/adminer_auth_password_hash); caddy run --config /etc/caddy/Caddyfile --adapter caddyfile' ]
+    depends_on:
+      - adminer
+
+  db:
+    image: marcgraub/risaquerol-postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+      - ./postgres/initdb:/docker-entrypoint-initdb.d
+    environment:
+      TZ: Europe/Madrid
+      PGTZ: Europe/Madrid
+      LANG: es_ES.utf8
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=es-ES"
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_USER_FILE: /run/secrets/postgres_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_DB_FILE: /run/secrets/postgres_db
+      POSTGRES_ERP_DB_USER_FILE: /run/secrets/postgres_erp_db_user
+      POSTGRES_ERP_DB_FILE: /run/secrets/postgres_erp_db_name
+      POSTGRES_ERP_DB_PASSWORD_FILE: /run/secrets/postgres_erp_db_password
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
+      - postgres_erp_db_user
+      - postgres_erp_db_name
+      - postgres_erp_db_password
+
+  adminer:
+    image: adminer:fastcgi
+    restart: always
+    volumes:
+        - adminer-data:/var/www/html
+
+volumes:
+  adminer-data:
+
+secrets:
+  postgres_db:
+    external: true
+  postgres_user:
+    external: true
+  postgres_password:
+    external: true
+  postgres_erp_db_name:
+    external: true
+  postgres_erp_db_user:
+    external: true
+  postgres_erp_db_password:
+    external: true
+  adminer_auth_user:
+    external: true
+  adminer_auth_password_hash:
+    external: true
+  caddy_cloudflare_api_token:
+    external: true
+  Caddyfile:
+      file: ./caddy/Caddyfile.prod

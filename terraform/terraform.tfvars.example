@@ -1,0 +1,4 @@
+hcloud_token        = "token"
+public_key_name     = "user"
+public_key_location = "C:/Users/user/.ssh/id_rsa.pub"
+#public_key_location = "~/.ssh/id_example.pub"

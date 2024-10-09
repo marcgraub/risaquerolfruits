@@ -1,0 +1,56 @@
+#cloud-config
+users:
+  - name: <username>
+    groups:
+      - users
+      - admin
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - <public_ssh_key>
+packages:
+  - fail2ban
+  - ufw
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - dos2unix
+  - jq
+  - make
+  - git
+package_update: true
+package_upgrade: true
+runcmd:
+  - apt update && apt upgrade -y
+  - mkdir -p /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  - apt update && apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
+  - systemctl start docker
+  - systemctl enable docker
+  - systemctl status docker
+  - usermod -aG docker <username>
+  - ufw allow 2377/tcp
+  - ufw allow 7946/tcp
+  - ufw allow 7946/udp
+  - ufw allow 4789/udp
+  - ufw allow proto tcp from any to any port 80,443,5432
+  - ufw allow OpenSSH
+  - ufw enable
+  - printf "[sshd]\nenabled = true\nbanaction = iptables-multiport" > /etc/fail2ban/jail.local
+  - systemctl enable fail2ban
+  - awk -F= -v k=HISTSIZE -v v=-1 'BEGIN{OFS="="} $1==k{$2=v; s=1}1; END{if(!s) print k, v}' /home/<username>/.bashrc > /home/<username>/.bashrc.tmp && mv /home/<username>/.bashrc.tmp /home/<username>/.bashrc
+  - awk -F= -v k=HISTFILESIZE -v v=-1 'BEGIN{OFS="="} $1==k{$2=v; s=1}1; END{if(!s) print k, v}' /home/<username>/.bashrc > /home/<username>/.bashrc.tmp && mv /home/<username>/.bashrc.tmp /home/<username>/.bashrc
+  - sed -i -e '/^\(#\|\)PermitRootLogin/s/^.*$/PermitRootLogin no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)PasswordAuthentication/s/^.*$/PasswordAuthentication no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)KbdInteractiveAuthentication/s/^.*$/KbdInteractiveAuthentication no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)ChallengeResponseAuthentication/s/^.*$/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)MaxAuthTries/s/^.*$/MaxAuthTries 2/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)AllowTcpForwarding/s/^.*$/AllowTcpForwarding no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)X11Forwarding/s/^.*$/X11Forwarding no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)AllowAgentForwarding/s/^.*$/AllowAgentForwarding no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)AuthorizedKeysFile/s/^.*$/AuthorizedKeysFile .ssh\/authorized_keys/' /etc/ssh/sshd_config
+  - sed -i '$a AllowUsers <username>' /etc/ssh/sshd_config
+  - reboot

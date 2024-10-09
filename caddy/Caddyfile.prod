@@ -1,0 +1,23 @@
+risaquerolfruits.marcgraub.com {
+    tls {
+        dns cloudflare {$CADDY_CLOUDFLARE_API_TOKEN}
+        resolvers 1.1.1.1
+    }
+    
+	log {
+        output stdout
+		format console
+	}
+
+	basicauth {
+		{$ADMINER_AUTH_USER} {$ADMINER_AUTH_PASSWORD_HASH}
+	}
+
+    root * /var/www/html
+    file_server
+    php_fastcgi adminer:9000
+    encode zstd gzip
+
+    @blocked path /xmlrpc.php *.sql
+    rewrite @blocked /index.php
+}
