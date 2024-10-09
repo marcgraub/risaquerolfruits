@@ -109,6 +109,8 @@ dos2unix ./docker/utils/docker-logs
 
 ## Deploying with Terraform
 
+Modify the file 'terraform/cloud-init.yaml' and replace all the \<username\> and \<public_ssh_key\> with the corresponding values.
+
 ```bash
 terraform init
 terraform plan
